@@ -1,0 +1,24 @@
+{
+  "name": "jira-board",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev:api": "bun run --filter @jira-board/api dev",
+    "dev:web": "bun run --filter @jira-board/web dev",
+    "build": "bun run --filter '*' build",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "typecheck": "tsc -b"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9",
+    "eslint": "^9",
+    "typescript-eslint": "^8",
+    "prettier": "^3",
+    "typescript": "^5"
+  }
+}

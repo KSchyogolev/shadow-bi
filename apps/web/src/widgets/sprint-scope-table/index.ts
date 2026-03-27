@@ -1,0 +1,1 @@
+export { SprintScopeTable } from "./ui";

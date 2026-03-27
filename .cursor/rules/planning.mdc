@@ -1,0 +1,37 @@
+---
+description: Implementation plans — use for multi-step tasks before coding
+globs:
+  - "**/*.md"
+  - "**/*.ts"
+  - "**/*.tsx"
+---
+
+# Implementation Plans
+
+## Task Granularity
+
+Each step is one atomic action (2–5 minutes): write test → verify fail → implement → verify pass → commit.
+
+## Task Structure
+
+```
+### Task N: [Component Name]
+
+Files:
+- Create: `exact/path/to/file.ts`
+- Modify: `exact/path/to/existing.ts`
+- Test: `exact/path/to/test.ts`
+
+- [ ] Step 1: Write failing test (complete code)
+- [ ] Step 2: Verify it fails (exact command + expected output)
+- [ ] Step 3: Implement (complete code)
+- [ ] Step 4: Verify it passes (exact command + expected output)
+- [ ] Step 5: Commit
+```
+
+## Rules
+
+- Always include complete code in plan — never "add validation" or "implement logic"
+- Always include exact file paths and exact commands with expected output
+- If spec covers multiple subsystems — separate plans, one per subsystem
+- Never start implementation on main/master without user consent

@@ -1,0 +1,25 @@
+{
+  "name": "@jira-board/api",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "bun run --watch src/index.ts",
+    "build": "bun build src/index.ts --outdir dist --target bun",
+    "typecheck": "tsc --noEmit",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "bun run src/infrastructure/db/migrate.ts",
+    "db:studio": "drizzle-kit studio"
+  },
+  "dependencies": {
+    "@elysiajs/cors": "^1.4.1",
+    "@jira-board/shared": "workspace:*",
+    "@sinclair/typebox": "^0.34.48",
+    "drizzle-orm": "^0.39",
+    "elysia": "^1.2",
+    "postgres": "^3.4.8"
+  },
+  "devDependencies": {
+    "drizzle-kit": "^0.30",
+    "@types/bun": "latest"
+  }
+}

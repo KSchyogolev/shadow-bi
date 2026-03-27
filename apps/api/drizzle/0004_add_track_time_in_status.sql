@@ -1,0 +1,1 @@
+ALTER TABLE "statuses" ADD COLUMN "track_time_in_status" boolean DEFAULT true NOT NULL;

@@ -1,0 +1,118 @@
+---
+description: Visx charting conventions and patterns
+globs:
+  - "apps/web/src/**/*.tsx"
+  - "apps/web/src/**/*.ts"
+alwaysApply: false
+---
+
+# Visx — Conventions
+
+## Two API Levels
+
+- **`@visx/xychart`** — high-level declarative API with built-in scales, tooltips, themes via React Context. Use for standard cartesian charts (line, bar, area, scatter).
+- **Low-level primitives** (`@visx/shape`, `@visx/scale`, `@visx/axis`, etc.) — use when XYChart is too constraining: custom layouts, non-cartesian charts, heavy interactions.
+
+Don't mix levels within one chart. Pick one.
+
+## XYChart Essentials
+
+```tsx
+import { XYChart, Axis, Grid, LineSeries, Tooltip } from '@visx/xychart';
+
+<XYChart height={300} xScale={{ type: 'band' }} yScale={{ type: 'linear' }}>
+  <Grid columns={false} numTicks={4} />
+  <LineSeries dataKey="velocity" data={data} xAccessor={d => d.sprint} yAccessor={d => d.points} />
+  <Axis orientation="bottom" />
+  <Tooltip
+    snapTooltipToDatumX
+    showVerticalCrosshair
+    showSeriesGlyphs
+    renderTooltip={({ tooltipData, colorScale }) => (
+      <div style={{ color: colorScale(tooltipData.nearestDatum.key) }}>
+        {tooltipData.nearestDatum.key}: {accessors.yAccessor(tooltipData.nearestDatum.datum)}
+      </div>
+    )}
+  />
+</XYChart>
+```
+
+- `dataKey` is the series identifier — maps to theme colors via `colorScale`.
+- `tooltipData.datumByKey` gives nearest datum **per series** (shared tooltips).
+- `tooltipData.nearestDatum` is the globally closest datum across all series.
+
+## Animations — Avoid `react-spring`
+
+Use **non-animated** components (`Axis`, `Grid`, `LineSeries` etc.) instead of `Animated*` variants. `Animated*` requires `react-spring` as peer dep — it has React 19 compatibility issues. CSS transitions or `framer-motion` are preferred if animation is needed.
+
+## Responsive
+
+```tsx
+import { useParentSize } from '@visx/responsive';
+
+const Chart = () => {
+  const { parentRef, width, height } = useParentSize({ debounceTime: 150 });
+  return (
+    <div ref={parentRef}>
+      <XYChart width={width} height={height} ...>
+```
+
+- Always wrap charts in `useParentSize` — never hardcode dimensions.
+- Set `debounceTime: 150` (default 300 is sluggish).
+- **Gotcha**: flex/grid parent without explicit height collapses to 0. Give parent container a CSS height.
+
+## Theming — Integrate with App Palette
+
+```tsx
+import { buildChartTheme } from '@visx/xychart';
+
+const chartTheme = buildChartTheme({
+  backgroundColor: 'var(--color-surface)',
+  colors: ['var(--color-accent)', 'var(--color-secondary)', ...],
+  gridColor: 'var(--color-border)',
+  gridColorDark: 'var(--color-border-strong)',
+  tickLength: 4,
+});
+```
+
+Export a single shared `chartTheme` from `shared/lib/chart-theme.ts`. Never inline theme objects.
+
+## Low-Level Pattern
+
+```tsx
+import { scaleLinear, scaleBand } from '@visx/scale';
+import { Group } from '@visx/group';
+import { Bar } from '@visx/shape';
+import { AxisBottom } from '@visx/axis';
+
+const xScale = scaleBand({ domain: data.map(d => d.label), range: [0, xMax], padding: 0.3 });
+const yScale = scaleLinear({ domain: [0, max], range: [yMax, 0] });
+```
+
+- Accessor pattern: `const xAccessor = (d: Datum) => d.field` — keep accessors as standalone functions, not inline.
+- Compose: `const xPoint = (d: Datum) => xScale(xAccessor(d))` — creates a data→pixel mapper.
+- Always define `margin` as `{ top, right, bottom, left }`, compute `xMax = width - margin.left - margin.right`.
+
+## Tooltips (Low-Level)
+
+```tsx
+import { useTooltip, TooltipWithBounds } from '@visx/tooltip';
+
+const { showTooltip, hideTooltip, tooltipData, tooltipLeft, tooltipTop, tooltipOpen } = useTooltip<Datum>();
+```
+
+- Wrap chart container in a `position: relative` div — tooltip positions are relative to it.
+- `TooltipWithBounds` auto-repositions to stay in viewport. Prefer it over raw `Tooltip`.
+- `useTooltipInPortal` renders via React portal — use when chart is inside overflow-hidden containers.
+
+## Installed Packages
+
+`@visx/xychart` `@visx/responsive` `@visx/scale` `@visx/shape` `@visx/axis` `@visx/grid` `@visx/group` `@visx/tooltip` `@visx/curve` `@visx/gradient` `@visx/text` `@visx/pattern`
+
+Add more from the visx ecosystem as needed — install individually, never `@visx/visx`.
+
+## FSD Placement
+
+- `shared/lib/chart-theme.ts` — theme config
+- `shared/ui/` — reusable chart primitives (e.g., `<ChartContainer>` with responsive wrapper)
+- `widgets/` — composed dashboard charts (burndown, velocity, status-distribution)

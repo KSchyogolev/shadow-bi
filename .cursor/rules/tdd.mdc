@@ -1,0 +1,35 @@
+---
+description: TDD workflow — use when implementing any feature or bugfix
+globs:
+  - "**/*.ts"
+  - "**/*.tsx"
+  - "**/*.test.ts"
+  - "**/*.spec.ts"
+---
+
+# Test-Driven Development
+
+## Iron Law
+
+**No production code without a failing test first.**
+
+Wrote code before the test? Delete it. Start over. No exceptions.
+
+## Process
+
+1. **RED** — write one minimal failing test. One behavior, clear name, real code (no mocks unless unavoidable).
+2. **Verify RED (mandatory)** — run tests, confirm it fails for the expected reason (feature missing, not typo/error).
+3. **GREEN** — write the simplest code to pass. Nothing beyond what the test requires.
+4. **Verify GREEN (mandatory)** — run tests, confirm all pass, output clean.
+5. **REFACTOR** — clean up while keeping tests green. No new behavior.
+6. Repeat.
+
+## Bug Fixes
+
+Write failing test reproducing the bug first. Then fix. Never fix without a test.
+
+## Red Flags — Delete Code, Start Over
+
+- Code written before test
+- Test passes immediately (testing existing behavior)
+- Skipped verification step

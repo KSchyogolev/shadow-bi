@@ -1,0 +1,27 @@
+---
+description: Frontend design quality — use when building UI components, pages, or styling
+globs:
+  - "**/*.tsx"
+  - "**/*.css"
+  - "apps/web/**/*"
+---
+
+# Frontend Design
+
+## Anti-AI-Slop Rules
+
+Never use:
+- Generic fonts (Inter, Roboto, Arial, system fonts)
+- Purple gradients on white backgrounds
+- Cookie-cutter layouts, predictable component patterns
+- Same design choices across different components
+
+## Guidelines
+
+- **Typography**: distinctive font pairings — display + body. Choose fonts with character.
+- **Color**: cohesive palette via CSS variables. Dominant colors with sharp accents, not evenly-distributed.
+- **Motion**: CSS-only where possible. One well-orchestrated page load with staggered reveals > scattered micro-interactions.
+- **Composition**: asymmetry, generous negative space or controlled density. Grid-breaking where appropriate.
+- **Atmosphere**: depth via gradient meshes, noise textures, geometric patterns, layered transparencies, shadows, grain.
+
+Match implementation complexity to aesthetic vision — maximalist needs elaborate code, minimalist needs precision.

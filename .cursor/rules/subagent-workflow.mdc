@@ -1,0 +1,51 @@
+---
+description: Subagent-driven development — use when executing implementation plans with independent tasks
+globs:
+  - "**/*.ts"
+  - "**/*.tsx"
+---
+
+# Subagent-Driven Development
+
+Fresh subagent per task + two-stage review (spec compliance → code quality).
+
+## Process
+
+For each task from the plan:
+
+### 1. Dispatch Implementer
+
+Create a Task subagent with:
+- Full text of the task (don't make subagent read files)
+- Context: where this fits, dependencies, architectural decisions
+- Instructions: implement → test (TDD) → commit → self-review → report status
+
+### 2. Handle Status
+
+- **DONE** → proceed to reviews
+- **DONE_WITH_CONCERNS** → read concerns, address if about correctness, then review
+- **NEEDS_CONTEXT** → provide missing info, re-dispatch
+- **BLOCKED** → provide more context / use more capable model / break into smaller pieces / escalate to user
+
+### 3. Spec Compliance Review
+
+Dispatch reviewer to verify: all requirements implemented, nothing extra, no misunderstandings.
+**Verify by reading code, not trusting implementer's report.**
+
+### 4. Code Quality Review (only after spec compliance passes)
+
+Check: clean code, one responsibility per file, follows plan structure.
+
+### 5. Mark Complete, Next Task
+
+## Model Selection
+
+- Mechanical tasks (1–2 files, clear spec) → fast model
+- Integration tasks (multi-file coordination) → standard model
+- Architecture/design/review → most capable model
+
+## Hard Rules
+
+- Spec compliance BEFORE code quality (order matters)
+- Never dispatch parallel implementation subagents
+- Never proceed with unfixed review issues

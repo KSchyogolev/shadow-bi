@@ -1,0 +1,62 @@
+---
+description: Project conventions for Jira BI — always active
+globs:
+  - "**/*.ts"
+  - "**/*.tsx"
+  - "**/*.json"
+alwaysApply: true
+---
+
+# Jira BI — Project Conventions
+
+## Stack
+
+- **Runtime**: Bun
+- **Backend**: Elysia, PostgreSQL, Drizzle ORM
+- **Frontend**: React, React Query, Zustand, Tailwind CSS, Zod
+- **Charts**: Visx (low-level D3 + React primitives)
+- **Backend arch**: DDD-lite (domain → application → infrastructure → interface)
+- **Frontend arch**: FSD (Feature-Sliced Design)
+
+## Monorepo Structure
+
+```
+apps/api/       — Elysia backend (DDD)
+apps/web/       — React frontend (FSD)
+packages/shared/ — Zod schemas, shared types (API contract)
+```
+
+## Backend (DDD-lite)
+
+- `domain/` — entities, value objects, types. No infrastructure dependencies.
+- `application/` — use cases. Orchestrate domain + repositories.
+- `infrastructure/` — DB (Drizzle), JIRA client, repositories. Concrete implementations.
+- `interface/` — HTTP routes (Elysia). Input validation, call use cases, shape response.
+
+Repository is a thin wrapper over Drizzle — no interface + implementation + factory pattern.
+
+## Frontend (FSD)
+
+Each layer only knows about layers below:
+
+- `app/` — providers, router, global styles
+- `pages/` — pages (dashboard, issues, sprints)
+- `widgets/` — composite UI blocks (issues-table, sprint-burndown, status-chart, filters-panel)
+- `features/` — user actions (sync-data, filter-issues)
+- `entities/` — business entities (issue, sprint, project)
+- `shared/` — api, ui components, lib, config
+
+`widgets` imports `entities`, but not vice versa.
+
+## State Management
+
+- **React Query** — all API data. Single source of server state.
+- **Zustand** — UI state only (filters, selected project). NEVER duplicates server data.
+
+## Validation
+
+Zod schemas in `packages/shared` — single source of truth for both backend route validation and frontend API response typing.
+
+## UI Language
+
+All user-facing text in the frontend **must be in English**. No Russian or other non-English strings in components, labels, placeholders, headings, tooltips, or format helpers.

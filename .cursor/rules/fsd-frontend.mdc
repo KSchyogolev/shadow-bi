@@ -1,0 +1,179 @@
+---
+description: FSD architecture conventions for the React frontend
+globs:
+  - "apps/web/src/**/*.ts"
+  - "apps/web/src/**/*.tsx"
+alwaysApply: false
+---
+
+# FSD — Frontend Architecture
+
+## Layer Import Rule
+
+A module can ONLY import from layers strictly below it. Never sideways, never up.
+
+```
+app      → pages, widgets, features, entities, shared
+pages    → widgets, features, entities, shared
+widgets  → features, entities, shared
+features → entities, shared
+entities → shared
+shared   → (nothing above)
+```
+
+Slices on the same layer CANNOT import each other.
+`app/` and `shared/` have no slices — segments directly.
+
+## Slice Structure
+
+Every slice follows the pattern: `layer/slice-name/` with segments inside.
+
+```
+entities/issue/
+├── index.ts          # public API — only this is importable from outside
+├── api/index.ts      # React Query hooks (useQuery/useMutation)
+├── lib/index.ts      # pure helpers, computations, formatters
+├── model/index.ts    # Zustand store (rare — only project has one)
+└── ui/               # presentational components
+    ├── flow-bar.tsx
+    └── issue-header.tsx
+```
+
+Not every slice needs all segments. Use only what's needed:
+- **api** — when slice fetches data (almost always in entities)
+- **ui** — when slice has visual components
+- **model** — when slice owns persistent UI state (Zustand). Rare.
+- **lib** — pure functions, computations, color mappings
+
+## Public API (index.ts)
+
+Every slice MUST have `index.ts` at its root. Explicit named re-exports only.
+
+```typescript
+// ✅ entities/issue/index.ts
+export { useIssues, useIssue } from "./api";
+export { computeIssueMetrics, getStatusBadgeVariant } from "./lib";
+export type { IssueMetrics } from "./lib";
+export { FlowBar } from "./ui/flow-bar";
+
+// ❌ NEVER
+export * from "./api";
+export * from "./ui";
+```
+
+External code imports ONLY from the slice root:
+```typescript
+import { useIssues, FlowBar } from "@/entities/issue";     // ✅
+import { useIssues } from "@/entities/issue/api";           // ❌
+import { FlowBar } from "@/entities/issue/ui/flow-bar";     // ❌
+```
+
+Within a slice, use relative paths:
+```typescript
+// entities/issue/ui/flow-bar.tsx
+import { computeIssueMetrics } from "../lib";  // ✅ relative within slice
+import { computeIssueMetrics } from "@/entities/issue";  // ❌ circular via index
+```
+
+## React Query Conventions
+
+Query hooks live in `entities/*/api/index.ts`. Pattern:
+
+```typescript
+import { useQuery } from "@tanstack/react-query";
+import { api } from "@/shared/api";
+
+export function useIssues(filters: Partial<IssueFilters> = {}) {
+  return useQuery({
+    queryKey: ["issues", filters],
+    queryFn: () => api.issues.list(filters),
+  });
+}
+```
+
+Rules:
+- Hook name: `use` + entity noun (`useIssues`, `useSprintBurndown`)
+- Query key: `[entity, ...params]` — include params for auto-refetch on change
+- `queryFn` calls methods on `api` object from `@/shared/api`
+- Types come from `@jira-board/shared` (Zod-inferred)
+- Mutations for settings/mapping live in `features/*/api` or `features/*/ui` (with `useMutation` inline)
+
+## Zustand Conventions
+
+Zustand stores live in `model/index.ts`. Only for UI-only state.
+
+```typescript
+import { create } from "zustand";
+import { persist } from "zustand/middleware";
+
+export const useProjectStore = create<ProjectStore>()(
+  persist(
+    (set) => ({
+      selectedProject: null,
+      setSelectedProject: (project) => set({ selectedProject: project }),
+    }),
+    { name: "jira-bi:selected-project" },
+  ),
+);
+```
+
+Rules:
+- NEVER duplicate server data in Zustand — that's React Query's job
+- `persist` with `name: "jira-bi:*"` prefix for localStorage key
+- Exported via slice's `index.ts`
+
+## Layer Purpose Cheatsheet
+
+| Layer | What belongs here | Imports from |
+|-------|------------------|-------------|
+| **shared/ui** | Primitives: Button, Card, Skeleton, Select, ChartContainer | nothing above |
+| **shared/api** | `api` object, `http` client, `ApiError` | shared/config |
+| **shared/lib** | `cn()`, `format`, `chart-theme` | nothing above |
+| **entities** | Business data hooks + entity UI cards. One slice per domain concept | shared |
+| **features** | User actions: filter-issues, sync-project, map-status-phase | entities, shared |
+| **widgets** | Composed dashboard blocks: sprint-burndown, issues-table, filters-panel | features, entities, shared |
+| **pages** | Route-level components, compose widgets | widgets, features, entities, shared |
+
+## Creating New Code — Decision Tree
+
+- **New API endpoint consumer?** → `entities/*/api` (query hook) or `shared/api` (api object method)
+- **New computed value / formatter?** → `entities/*/lib` or `shared/lib`
+- **New card/chart for dashboard?** → `widgets/new-widget/ui/index.tsx`
+- **New user action (button + mutation)?** → `features/new-feature/`
+- **New reusable UI primitive?** → `shared/ui/component-name.tsx`
+- **New page?** → `pages/new-page/ui/index.tsx` + `pages/new-page/index.ts` + add route in `app/router.tsx`
+
+## shared/ui Import Pattern
+
+Heavy components are imported directly to aid tree-shaking:
+```typescript
+import { Card, CardHeader, Skeleton } from "@/shared/ui";             // barrel OK for basics
+import { ChartContainer } from "@/shared/ui/chart-container";          // direct for heavy
+import { MultiSelect } from "@/shared/ui/multi-select";                // direct for heavy
+```
+
+## Widget Pattern
+
+One component per widget. Fetches its own data via entity hooks. Self-contained.
+
+```typescript
+// widgets/sprint-burndown/ui/index.tsx
+import { useSprintBurndown } from "@/entities/sprint";
+import { Card, CardContent, CardHeader, CardTitle, Skeleton } from "@/shared/ui";
+import { ChartContainer } from "@/shared/ui/chart-container";
+
+export function SprintBurndown({ sprintId }: { sprintId: string }) {
+  const { data, isLoading } = useSprintBurndown(sprintId);
+  return (
+    <Card>
+      <CardHeader><CardTitle>Burndown</CardTitle></CardHeader>
+      <CardContent>
+        {isLoading ? <BurndownSkeleton /> : /* chart */ null}
+      </CardContent>
+    </Card>
+  );
+}
+
+// widgets/sprint-burndown/index.ts
+export { SprintBurndown } from "./ui";
+```

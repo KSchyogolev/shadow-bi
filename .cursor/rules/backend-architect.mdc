@@ -1,0 +1,66 @@
+---
+description: Backend architecture patterns — use when designing or modifying API, DB schema, domain logic, or infrastructure
+globs:
+  - "apps/api/**/*.ts"
+  - "packages/shared/**/*.ts"
+---
+
+# Backend Architecture (Bun + Elysia + Drizzle + PostgreSQL)
+
+## Decision-Making
+
+Lead with trade-off analysis. For every architectural choice, state:
+- What we gain
+- What we pay (complexity, performance, coupling)
+- Why it's the right trade-off for this project's scale
+
+Advocate for simplicity. Don't add infrastructure (queues, caches, event buses) until there's a measured need.
+
+## Elysia Patterns
+
+- Routes are thin: validate input (Zod from `packages/shared`), call use case, return response. No business logic in routes.
+- Use Elysia's built-in validation with `.body()`, `.query()`, `.params()` referencing Zod schemas via `t.` type system or direct Zod integration.
+- Group routes by domain: `issues.route.ts`, `sprints.route.ts`, `projects.route.ts`, `sync.route.ts`, `dashboard.route.ts`.
+- Error handling: use Elysia's `onError` hook. Map domain errors to HTTP status codes in one place.
+- Use Elysia plugins for cross-cutting concerns (CORS, logging), not middleware chains.
+
+## Drizzle + PostgreSQL Patterns
+
+- Schema defined in `infrastructure/db/schema.ts` — single source of truth for DB structure.
+- Use Drizzle's query builder, not raw SQL. Leverage `.select()`, `.where()`, `.orderBy()`, `.limit()` for composable queries.
+- Repositories return domain types, not Drizzle row types. Mapping happens inside the repo.
+- For filtered list endpoints: build queries dynamically — apply `.where()` conditions only for provided filters.
+- Use `drizzle-kit` for migrations. Never modify DB schema without a migration file.
+- Index strategy: index columns used in `WHERE`, `ORDER BY`, `JOIN`. For Jira BI: `issues.status`, `issues.priority`, `issues.project_key`, `issues.sprint_id`, `issues.assignee`, `issues.created_at`.
+
+## DDD-lite Boundaries
+
+- **Domain layer has zero imports from infrastructure.** Domain types are plain TypeScript — no Drizzle types, no Elysia types, no Zod.
+- **Use cases** are functions, not classes. Accept repository functions as arguments (simple dependency injection via function params, not DI containers).
+- **Don't over-abstract:** no generic Repository<T> base class, no Unit of Work, no domain events, no CQRS. Add only when pain is felt.
+- **New domain = new folder** with its own `entity.ts`, `types.ts`, repo, route. Copy the pattern from `issue/`.
+
+## API Design
+
+- All endpoints under `/api/` prefix.
+- List endpoints return `{ data: T[], total: number, page: number, limit: number }`.
+- Filter via query params, not request body. Validate with Zod schema from `packages/shared`.
+- Consistent error response: `{ error: string, details?: unknown }`.
+- Use proper HTTP status codes: 200 (ok), 201 (created), 400 (validation), 404 (not found), 500 (server error).
+
+## JIRA Client
+
+- `JiraClient` is infrastructure — lives in `infrastructure/jira/`.
+- `JiraMapper` converts JIRA API response → domain entities. Keep mapping logic isolated and testable.
+- Handle JIRA API pagination internally (loop until all results fetched).
+- Handle rate limiting with exponential backoff.
+- Never leak JIRA-specific types into domain or application layers.
+
+## Anti-Patterns
+
+- Repository that wraps repository (repository should directly use Drizzle `db` instance)
+- Business logic in routes (move to use case)
+- Drizzle row types leaking into domain (map in repo)
+- JIRA API types in domain (map in JiraMapper)
+- Synchronous JIRA sync blocking the API (use sync_log table to track async progress)
+- Generic error handling that swallows useful error context

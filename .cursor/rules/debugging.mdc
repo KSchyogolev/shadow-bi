@@ -1,0 +1,22 @@
+---
+description: Systematic debugging — use when encountering any bug, test failure, or unexpected behavior
+globs:
+  - "**/*.ts"
+  - "**/*.tsx"
+---
+
+# Systematic Debugging
+
+## Iron Law
+
+**No fixes without root cause investigation first.** Don't guess. Don't "just try changing X."
+
+## Non-Obvious Rules
+
+1. **Gather evidence before fixing** — in multi-component systems, add diagnostic logging at each component boundary first. Run once to see WHERE it breaks. Then analyze.
+
+2. **Trace to source, not symptom** — if a bad value appears deep in the call stack, trace backward through callers until you find where it originates. Fix at source.
+
+3. **3+ fixes failed → STOP** — this is likely an architecture problem, not a bug. Question the design. Discuss with user before attempting fix #4.
+
+4. **One variable at a time** — don't pile multiple fixes. Make the smallest change, verify, then move on.
